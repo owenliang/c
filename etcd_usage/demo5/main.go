@@ -17,6 +17,7 @@ func demo5() {
 		putResp *clientv3.PutResponse
 		keepRespChan <-chan *clientv3.LeaseKeepAliveResponse	// 只读的channel
 		keepResp *clientv3.LeaseKeepAliveResponse
+		getResp *clientv3.GetResponse
 		lease clientv3.Lease
 		leaseId clientv3.LeaseID
 		ctx context.Context
@@ -60,28 +61,47 @@ func demo5() {
 	// put的结果
 	fmt.Println("写入版本:", putResp.Header.Revision)
 
-	// 我们持续续租5秒后停止程序
-	ctx, _ = context.WithTimeout(context.TODO(), 5 * time.Second)
+	// 启动一个协程自动续约
+	go func() {
+		// 我们保持自动续约5秒就停止续约
+		ctx, _ = context.WithTimeout(context.TODO(), 5 * time.Second)
 
-	// 持续给lease续约
-	if keepRespChan, err = lease.KeepAlive(ctx, leaseId); err != nil {
-		fmt.Println("自动续租失败", err)
-		return
-	}
+		// 持续给lease续约
+		if keepRespChan, err = lease.KeepAlive(ctx, leaseId); err != nil {
+			fmt.Println("自动续租失败", err)
+			return
+		}
 
-	// 消费自动续租的应答, 直到租约被取消或者出错
-	for {
-		select {
-		case keepResp = <-keepRespChan:
-			if keepResp == nil {
-				fmt.Println("终止租约")
-				goto END
-			} else {
-				fmt.Println("续租成功:", keepResp.ID)
+		// 消费自动续租的应答, 直到租约被取消或者出错
+		for {
+			select {
+			case keepResp = <-keepRespChan:
+				if keepResp == nil {
+					fmt.Println("终止租约")
+					goto END
+				} else {
+					fmt.Println("续租成功:", keepResp.ID)
+				}
 			}
 		}
+		END:
+	}()
+
+	// 定时查询一下/cron/job5是否过期
+	for {
+		if getResp, err = kv.Get(context.TODO(),"/cron/job5"); err != nil {
+			fmt.Println(err)
+			break
+		}
+		// kv过期删除
+		if len(getResp.Kvs) == 0 {
+			fmt.Println("kv过期")
+			break
+		}
+		// 打印kv
+		fmt.Println(getResp.Kvs)
+		time.Sleep(2 * time.Second)
 	}
-END:
 }
 
 func main() {
