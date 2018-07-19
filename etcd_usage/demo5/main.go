@@ -7,7 +7,7 @@ import (
 	"golang.org/x/net/context"
 )
 
-// get读取目录下的kv
+// 使用租约实现kv自动过期
 func demo5() {
 	var (
 		config clientv3.Config
