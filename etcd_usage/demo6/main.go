@@ -5,17 +5,22 @@ import (
 	"time"
 	"fmt"
 	"golang.org/x/net/context"
+	"github.com/coreos/etcd/mvcc/mvccpb"
 )
 
-// 利用Op取代Get/Put
+// 使用watch监听目录变化
 func demo6() {
 	var (
 		config clientv3.Config
 		client *clientv3.Client
 		kv clientv3.KV
-		putOp clientv3.Op
-		opResp clientv3.OpResponse
-		getOp clientv3.Op
+		getResp *clientv3.GetResponse
+		watcher clientv3.Watcher
+		curVal string
+		watchStartRev int64
+		watchChan clientv3.WatchChan
+		watchResp clientv3.WatchResponse
+		event *clientv3.Event
 		err error
 	)
 
@@ -34,28 +39,61 @@ func demo6() {
 	// 用于读写etcd键值对
 	kv = clientv3.NewKV(client)
 
-	// 生成一个put操作
-	putOp = clientv3.OpPut("/cron/job6", "echo hello;")
+	// 启动一个协程, 定时的更新与删除目录下的kv
+	go func() {
+		for {
+			// 存一下
+			kv.Put(context.TODO(), "/cron/job6", "i am job6")
 
-	// 执行put操作
-	if opResp, err = kv.Do(context.TODO(), putOp); err != nil {
+			// 删一下
+			kv.Delete(context.TODO(), "/cron/job6")
+
+			// 休息1秒
+			time.Sleep(1 * time.Second)
+		}
+	}()
+
+	// 获取当前/cron/job6的值, 然后监听后续变化
+	if getResp, err = kv.Get(context.TODO(), "/cron/job6"); err != nil {
 		fmt.Println(err)
 		return
-	} else {
-		fmt.Println("写入版本:", opResp.Put().Header.Revision)
 	}
 
-	// 生成一个get操作
-	getOp = clientv3.OpGet("/cron/job6")
-
-	// 执行get操作
-	if opResp, err = kv.Do(context.TODO(), getOp); err != nil {
-		fmt.Println(err)
-		return
-	} else {
-		fmt.Println("数据版本:", opResp.Get().Kvs[0].ModRevision)
-		fmt.Println("读到数据:", string(opResp.Get().Kvs[0].Value))
+	// 如果Get时刻kv存在, 则记录下来
+	if len(getResp.Kvs) != 0 {
+		curVal = string(getResp.Kvs[0].Value)
 	}
+
+	// 用于监听kv变化的watcher
+	watcher = clientv3.NewWatcher(client)
+
+	// 演示10秒, 然后终止watch
+	time.AfterFunc(10 * time.Second, func() {
+		watcher.Close()
+	})
+
+	// 从Get操作时etcd的集群版本号开始监听后续变化
+	watchStartRev = getResp.Header.Revision + 1
+
+	fmt.Println("从该版本监听后续变化:", watchStartRev)
+	watchChan = watcher.Watch(context.TODO(), "/cron/job6", clientv3.WithRev(watchStartRev))
+
+	// 处理PUT和DELETE事件
+	for watchResp = range watchChan {
+		for _, event = range watchResp.Events {
+			switch (event.Type) {
+			case mvccpb.PUT:
+				curVal = string(event.Kv.Value)
+				fmt.Println("PUT:", curVal, "Revision:", event.Kv.ModRevision)
+			case mvccpb.DELETE:
+				curVal = ""
+				fmt.Println("DEL:", curVal, "Revision:", event.Kv.ModRevision)
+			}
+		}
+	}
+
+	// 监听被Close, 所以watchChan被关闭
+	fmt.Println("停止监听")
 }
 
 func main() {
