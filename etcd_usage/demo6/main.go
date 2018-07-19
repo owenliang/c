@@ -35,7 +35,7 @@ func demo6() {
 	kv = clientv3.NewKV(client)
 
 	// 生成一个put操作
-	putOp = clientv3.OpPut("/cron/job7", "echo hello;")
+	putOp = clientv3.OpPut("/cron/job6", "echo hello;")
 
 	// 执行put操作
 	if opResp, err = kv.Do(context.TODO(), putOp); err != nil {
@@ -46,7 +46,7 @@ func demo6() {
 	}
 
 	// 生成一个get操作
-	getOp = clientv3.OpGet("/cron/job7")
+	getOp = clientv3.OpGet("/cron/job6")
 
 	// 执行get操作
 	if opResp, err = kv.Do(context.TODO(), getOp); err != nil {
