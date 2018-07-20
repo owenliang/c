@@ -5,6 +5,8 @@ import (
 	"net"
 	"strconv"
 	"time"
+	"github.com/owenliang/c/common"
+	"encoding/json"
 )
 
 // 对Web提供的HTTP API接口
@@ -21,8 +23,59 @@ var (
 
 // 保存任务
 func handleJobSave(resp http.ResponseWriter, req *http.Request) {
-	
+	var (
+		job common.Job
+		oldJob *common.Job
+		postJob string
+		bytes []byte
+		rawMsg json.RawMessage
+		data *json.RawMessage
+		err error
+	)
+
+	// 解析POST表单
+	if err = req.ParseForm(); err != nil {
+		goto ERR
+	}
+
+	// 要保存的job json串
+	postJob = req.PostForm.Get("job")
+
+	// json反序列化
+	if err = json.Unmarshal([]byte(postJob), &job); err != nil {
+		goto ERR
+	}
+
+	// 保存job
+	if oldJob, err = G_jobMgr.SaveJob(&job); err != nil {
+		goto ERR
+	}
+
+	// 如果是更新, 返回旧任务信息
+	if oldJob != nil {
+		if bytes, err = json.Marshal(oldJob); err == nil {
+			rawMsg = json.RawMessage(bytes)
+			data = &rawMsg
+		}
+	}
+
+	// 返回成功应答
+	if bytes, err = common.BuildResponse(0, "success", data); err == nil {
+		resp.Write(bytes)
+	}
+	return
+
+	// 返回异常应答
+ERR:
+	if bytes, err = common.BuildResponse(-1, err.Error(), data); err == nil {
+		resp.Write(bytes)
+	}
+
+	// 从命令行展示一下任务被成功保存
+	// ETCDCTL_API=3 ./etcdctl get "/cron/jobs/" --prefix
 }
+
+//
 
 
 /** 对外接口 **/
