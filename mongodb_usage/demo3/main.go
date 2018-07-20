@@ -9,6 +9,7 @@ import (
 )
 
 // 大写字段是要导出的字段
+
 type TimePoint struct {
 	StartTime int64	`bson:"startTime"`
 	EndTime int64	`bson:"endTime"`
@@ -22,14 +23,16 @@ type LogRecord struct {
 	TimePoint TimePoint `bson:"timePoint"` // 执行时间信息
 }
 
-// 插入一条记录
-func demo2() {
+// 插入N条记录
+func demo3() {
 	var (
 		client *mongo.Client
 		collection *mongo.Collection
 		logRecord *LogRecord
-		result *mongo.InsertOneResult
+		manyResult *mongo.InsertManyResult
+		insertId interface{}
 		docId objectid.ObjectID
+		logArr []interface{}
 		err error
 	)
 
@@ -50,18 +53,23 @@ func demo2() {
 		TimePoint: TimePoint{time.Now().Unix(), time.Now().Unix() + 10},
 	}
 
-	// 插入到Mongodb
-	if result, err = collection.InsertOne(context.TODO(), logRecord); err != nil {
+	// 要写入的3条日志
+	logArr = []interface{}{logRecord, logRecord, logRecord}
+
+	// 批量插入mongodb
+	if manyResult, err = collection.InsertMany(context.TODO(), logArr); err != nil {
 		fmt.Println(err)
 		return
 	}
 
-	// 得到自增ID
-	docId = result.InsertedID.(objectid.ObjectID)	// 这是一个12字节的二进制ID
-	fmt.Println("记录唯一ID:", docId.Hex()) // 十六进制表达
+	// 遍历打印自增ID
+	for _, insertId = range manyResult.InsertedIDs {
+		docId = insertId.(objectid.ObjectID)
+		fmt.Println("插入ID:", docId)
+	}
 }
 
 // 连接mongodb
 func main() {
-	demo2()
+	demo3()
 }

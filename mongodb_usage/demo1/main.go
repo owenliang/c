@@ -8,7 +8,8 @@ import (
 	"time"
 )
 
-// github.com/mongodb/mongo-go-driver/mongo
+// SDK地址: github.com/mongodb/mongo-go-driver/mongo
+// API文档: https://godoc.org/github.com/mongodb/mongo-go-driver/mongo
 
 // 初始化客户端
 func demo1() {
