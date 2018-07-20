@@ -12,5 +12,8 @@
   "etcdEndpoints": ["localhost:2379"],
 
   "etcd连接超时": "单位毫米",
-  "etcdDialTimeout": 5000
+  "etcdDialTimeout": 5000,
+
+  "web页面根目录": "静态页面,前后端分离",
+  "webroot": "./webroot"
 }

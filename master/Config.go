@@ -12,6 +12,7 @@ type Config struct {
 	ApiWriteTimeout int `json:"apiWriteTimeout"`	// API写超时
 	EtcdEndpoints []string `json:etcdEndpoints` // etcd集群列表
 	EtcdDialTimeout int `json:etcdDialTimeout` // etcd连接超时
+	Webroot string `json:"webroot"`	// 静态页面根目录
 }
 
 var (
