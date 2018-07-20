@@ -101,6 +101,7 @@ func handleJobDelete(resp http.ResponseWriter, req *http.Request) {
 
 	// 如果删除成功, 返回被删除的任务信息
 	if oldJob != nil {
+		// 忽略这种错误
 		if bytes, err = json.Marshal(oldJob); err == nil {
 			rawMsg = json.RawMessage(bytes)
 			data = &rawMsg
@@ -120,9 +121,74 @@ ERR:
 	}
 }
 
-// 删除任务
-func handleListJobs(resp http.ResponseWriter, req *http.Request) {
-	
+// 列举所有任务
+func handleJobList(resp http.ResponseWriter, req *http.Request) {
+	var (
+		jobList []*common.Job
+		bytes []byte
+		rawMsg json.RawMessage
+		data *json.RawMessage
+		err error
+	)
+
+	// 获取任务列表
+	if jobList, err = G_jobMgr.ListJobs(); err != nil {
+		goto ERR
+	}
+
+	// 序列化data
+	if bytes, err = json.Marshal(jobList); err != nil {
+		goto ERR
+	}
+
+	rawMsg = json.RawMessage(bytes)
+	data = &rawMsg
+
+	// 返回成功应答
+	if bytes, err = common.BuildResponse(0, "success", data); err == nil {
+		resp.Write(bytes)
+	}
+	return
+
+	// 返回异常应答
+ERR:
+	if bytes, err = common.BuildResponse(-1, err.Error(), data); err == nil {
+		resp.Write(bytes)
+	}
+}
+
+// 强制杀死任务
+func handleJobKill(resp http.ResponseWriter, req *http.Request) {
+	var (
+		name string
+		bytes []byte
+		err error
+	)
+
+	// 解析POST表单
+	if err = req.ParseForm(); err != nil {
+		goto ERR
+	}
+
+	// 要杀死的任务名
+	name = req.PostForm.Get("name")
+
+	// 删除任务
+	if err = G_jobMgr.KillJob(name); err != nil {
+		goto ERR
+	}
+
+	// 返回成功应答
+	if bytes, err = common.BuildResponse(0, "success", nil); err == nil {
+		resp.Write(bytes)
+	}
+	return
+
+	// 返回异常应答
+ERR:
+	if bytes, err = common.BuildResponse(-1, err.Error(), nil); err == nil {
+		resp.Write(bytes)
+	}
 }
 
 /** 对外接口 **/
@@ -139,6 +205,8 @@ func InitApiServer() (err error) {
 	mux = http.NewServeMux()
 	mux.HandleFunc("/job/save", handleJobSave)
 	mux.HandleFunc("/job/delete", handleJobDelete)
+	mux.HandleFunc("/job/list", handleJobList)
+	mux.HandleFunc("/job/kill", handleJobKill)
 
 	// 监听端口
 	if listener, err = net.Listen("tcp", ":" + strconv.Itoa(G_config.ApiPort)); err != nil {
