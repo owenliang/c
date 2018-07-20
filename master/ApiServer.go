@@ -75,8 +75,55 @@ ERR:
 	// ETCDCTL_API=3 ./etcdctl get "/cron/jobs/" --prefix
 }
 
-//
+// 删除任务
+func handleJobDelete(resp http.ResponseWriter, req *http.Request) {
+	var (
+		name string
+		err error
+		oldJob *common.Job
+		bytes []byte
+		rawMsg json.RawMessage
+		data *json.RawMessage
+	)
 
+	// 解析POST表单
+	if err = req.ParseForm(); err != nil {
+		goto ERR
+	}
+
+	// 要删除的任务名
+	name = req.PostForm.Get("name")
+
+	// 删除任务
+	if oldJob, err = G_jobMgr.DeleteJob(name); err != nil {
+		goto ERR
+	}
+
+	// 如果删除成功, 返回被删除的任务信息
+	if oldJob != nil {
+		if bytes, err = json.Marshal(oldJob); err == nil {
+			rawMsg = json.RawMessage(bytes)
+			data = &rawMsg
+		}
+	}
+
+	// 返回成功应答
+	if bytes, err = common.BuildResponse(0, "success", data); err == nil {
+		resp.Write(bytes)
+	}
+	return
+
+	// 返回异常应答
+ERR:
+	if bytes, err = common.BuildResponse(-1, err.Error(), data); err == nil {
+		resp.Write(bytes)
+	}
+}
+
+// 删除任务
+func handleListJobs(resp http.ResponseWriter, req *http.Request) {
+	
+}
 
 /** 对外接口 **/
 
@@ -91,6 +138,7 @@ func InitApiServer() (err error) {
 	// 配置路由
 	mux = http.NewServeMux()
 	mux.HandleFunc("/job/save", handleJobSave)
+	mux.HandleFunc("/job/delete", handleJobDelete)
 
 	// 监听端口
 	if listener, err = net.Listen("tcp", ":" + strconv.Itoa(G_config.ApiPort)); err != nil {

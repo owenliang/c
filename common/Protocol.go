@@ -29,3 +29,4 @@ func BuildResponse(errno int , msg string, data *json.RawMessage) (resp []byte, 
 	resp, err = json.Marshal(response)
 	return
 }
+

@@ -19,7 +19,6 @@ var (
 	G_jobMgr *JobMgr
 )
 
-
 /** API **/
 
 // 初始化任务管理器
@@ -62,7 +61,7 @@ func (jobMgr *JobMgr)SaveJob(job *common.Job) (oldJob *common.Job, err error) {
 	)
 
 	// etcd的任务保存路径
-	jobKey = "/cron/jobs/" + job.Name
+	jobKey = common.JOB_SAVE_DIR + job.Name
 
 	// 任务信息序列化
 	if jobValue, err = json.Marshal(job); err != nil {
@@ -82,7 +81,32 @@ func (jobMgr *JobMgr)SaveJob(job *common.Job) (oldJob *common.Job, err error) {
 		}
 		oldJob = &oldJobObj
 	}
-
 	return
 }
 
+// 删除任务
+func (jobMgr *JobMgr)DeleteJob(name string) (oldJob *common.Job, err error) {
+	var (
+		jobKey string
+		delResp *clientv3.DeleteResponse
+		oldJobObj common.Job
+	)
+
+	// etcd的任务保存路径
+	jobKey = common.JOB_SAVE_DIR + name
+
+	// 删除etcd中的任务
+	if delResp, err = jobMgr.kv.Delete(context.TODO(), jobKey, clientv3.WithPrevKV()); err != nil {
+		return // 出错
+	}
+
+	// 返回删除前的任务信息
+	if len(delResp.PrevKvs) != 0 {
+		// 旧值非法, 可以忽略, 返回nil即可
+		if err = json.Unmarshal(delResp.PrevKvs[0].Value, &oldJobObj); err != nil {
+			return
+		}
+		oldJob = &oldJobObj
+	}
+	return
+}
