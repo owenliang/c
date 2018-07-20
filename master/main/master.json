@@ -1,0 +1,16 @@
+{
+  "API接口服务地址": "提供任务增删改查的HTTP接口",
+  "apiPort": 8080,
+
+  "API接口读超时": "单位毫秒",
+  "apiReadTimeout": 5000,
+
+  "API接口写超时": "单位毫秒",
+  "apiWriteTimeout": 5000,
+
+  "etcd集群列表": "配置多个避免单点故障",
+  "etcdEndpoints": ["localhost:2379"],
+
+  "etcd连接超时": "单位毫米",
+  "etcdDialTimeout": 5000
+}
