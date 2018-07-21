@@ -3,6 +3,8 @@ package common
 import (
 	"encoding/json"
 	"strings"
+	"github.com/gorhill/cronexpr"
+	"time"
 )
 
 // 应答固定协议
@@ -23,6 +25,40 @@ type Job struct {
 type JobEvent struct {
 	EventType int	// JOB_EVENT_SAVE, JOB_EVENT_DELETE
 	Job *Job	// 任务信息
+}
+
+// 任务调度计划
+type JobSchedulePlan struct {
+	Job *Job	// 任务信息
+	Expr *cronexpr.Expression	// cron表达式
+	NextTime time.Time // 下次调度时间
+}
+
+// 任务执行计划
+type JobExecuteInfo struct {
+	Job *Job // 任务信息
+	PlanTime time.Time // 理论调度时间
+	RealTime time.Time // 实际调度时间
+}
+
+// 构造调度计划
+func BuildJobSchedulePlan(job *Job) (jobSchedulePlan *JobSchedulePlan, err error) {
+	var (
+		expr *cronexpr.Expression
+	)
+
+	// 解析cron表达式
+	if expr, err = cronexpr.Parse(job.CronExpr); err != nil {
+		return
+	}
+
+	// 生成调度计划
+	jobSchedulePlan = &JobSchedulePlan{
+		Job: job,
+		Expr: expr,
+		NextTime: expr.Next(time.Now()),
+	}
+	return
 }
 
 // 反序列化任务

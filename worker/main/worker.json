@@ -3,5 +3,8 @@
   "etcdEndpoints": ["36.111.184.221:2379"],
 
   "etcd连接超时": "单位毫米",
-  "etcdDialTimeout": 5000
+  "etcdDialTimeout": 5000,
+
+  "etcd事件队列长度": "任务变化频率很低, 不需要太大",
+  "jobEventChanSize": 1000
 }

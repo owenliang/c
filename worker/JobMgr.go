@@ -6,7 +6,6 @@ import (
 	"github.com/coreos/etcd/mvcc/mvccpb"
 	"golang.org/x/net/context"
 	"github.com/owenliang/c/common"
-	"fmt"
 )
 
 // 监听etcd中的任务变化
@@ -43,10 +42,9 @@ func (jobMgr *JobMgr) watchJobs() (err error) {
 
 	//  将任务分发给调度线程
 	for _, kvpair = range getResp.Kvs {
-		if job, err = common.UnpackJob(kvpair.Value); err != nil {
-			// TODO: 分发
+		if job, err = common.UnpackJob(kvpair.Value); err == nil {
 			jobEvent = common.BuildJobEvent(common.JOB_EVENT_SAVE, job )
-			fmt.Println(*jobEvent)
+			G_scheduler.PushJobEvent(jobEvent)
 		}
 	}
 
@@ -71,8 +69,7 @@ func (jobMgr *JobMgr) watchJobs() (err error) {
 					job = &common.Job{Name: jobName}
 					jobEvent = common.BuildJobEvent(common.JOB_EVENT_DELETE, job)
 				}
-				// TODO: 分发任务
-				fmt.Println("事件:", jobEvent.EventType,  jobEvent.Job.Name)
+				G_scheduler.PushJobEvent(jobEvent)
 			}
 		}
 	}()
@@ -101,8 +98,7 @@ func (jobMgr *JobMgr) watchKiller() {
 					jobName = common.ExtractKillerName(string(watchEvent.Kv.Key))
 					job = &common.Job{Name: jobName}
 					jobEvent = common.BuildJobEvent(common.JOB_EVENT_KILL, job)
-					// TODO: 分发事件
-					fmt.Println("强杀任务:", jobEvent.Job.Name)
+					G_scheduler.PushJobEvent(jobEvent)
 				case mvccpb.DELETE: //  killer标记过期, 我们忽略
 				}
 			}

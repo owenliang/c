@@ -15,4 +15,7 @@ const (
 
 	// 杀死任务事件
 	JOB_EVENT_KILL = 3
+
+	// 调度周期(毫秒)
+	SCHEDULE_PERIOD = 100
 )
