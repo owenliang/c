@@ -160,7 +160,7 @@ func (JobMgr *JobMgr)KillJob(name string) (err error) {
 	)
 
 	// etcd通知杀死任务的key
-	killerKey = common.JOB_KILL_DIR + name
+	killerKey = common.JOB_KILLER_DIR + name
 
 	// 任意设置一个过期时间, 只是为了能够过期回收
 	if leaseGrantResp, err = JobMgr.lease.Grant(context.TODO(), 1); err != nil {
