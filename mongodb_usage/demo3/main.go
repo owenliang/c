@@ -37,7 +37,7 @@ func demo3() {
 		err error
 	)
 
-	if client, err = mongo.Connect(context.TODO(), "36.111.184.221:27017", clientopt.ConnectTimeout(5 * time.Second)); err != nil {
+	if client, err = mongo.Connect(context.TODO(), "mongodb://36.111.184.221:27017", clientopt.ConnectTimeout(5 * time.Second)); err != nil {
 		fmt.Println(err)
 		return
 	}
