@@ -20,7 +20,7 @@ func demo1() {
 	)
 
 	// 建立连接, 5秒超时
-	if client, err = mongo.Connect(context.TODO(), "mongodb://localhost:27017", clientopt.ConnectTimeout(5 * time.Second)); err != nil {
+	if client, err = mongo.Connect(context.TODO(), "mongodb://36.111.184.221:27017", clientopt.ConnectTimeout(5 * time.Second)); err != nil {
 		fmt.Println(err)
 		return
 	}

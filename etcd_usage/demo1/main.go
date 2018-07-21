@@ -16,7 +16,7 @@ func demo1() {
 
 	// 客户端配置
 	config = clientv3.Config{
-		Endpoints:   []string{"localhost:2379"},	// 集群列表
+		Endpoints:   []string{"36.111.184.221:2379"},	// 集群列表
 		DialTimeout: 5 * time.Second,	// 连接超时
 	}
 

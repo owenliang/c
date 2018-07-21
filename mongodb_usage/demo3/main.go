@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"time"
 	"github.com/mongodb/mongo-go-driver/bson/objectid"
+	"github.com/mongodb/mongo-go-driver/mongo/clientopt"
 )
 
 // 大写字段是要导出的字段
@@ -36,7 +37,7 @@ func demo3() {
 		err error
 	)
 
-	if client, err = mongo.Connect(context.TODO(), "mongodb://localhost:27017"); err != nil {
+	if client, err = mongo.Connect(context.TODO(), "36.111.184.221:27017", clientopt.ConnectTimeout(5 * time.Second)); err != nil {
 		fmt.Println(err)
 		return
 	}
