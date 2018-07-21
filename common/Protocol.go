@@ -5,6 +5,7 @@ import (
 	"strings"
 	"github.com/gorhill/cronexpr"
 	"time"
+	"golang.org/x/net/context"
 )
 
 // 应答固定协议
@@ -39,6 +40,19 @@ type JobExecuteInfo struct {
 	Job *Job // 任务信息
 	PlanTime time.Time // 理论调度时间
 	RealTime time.Time // 实际调度时间
+	CancelCtx context.Context // 任务执行用的context
+	CancelFunc context.CancelFunc //  取消任务的cancel函数
+}
+
+// 构造执行计划
+func BuildJobExecuteInfo(jobSchedulePlan *JobSchedulePlan) (jobExecuteInfo *JobExecuteInfo) {
+	jobExecuteInfo = &JobExecuteInfo{
+		Job: jobSchedulePlan.Job,	// 任务信息
+		PlanTime: jobSchedulePlan.NextTime, // 计划调度时间
+		RealTime: time.Now(),  // 实际调度时间
+	}
+	jobExecuteInfo.CancelCtx, jobExecuteInfo.CancelFunc = context.WithCancel(context.TODO())
+	return
 }
 
 // 构造调度计划

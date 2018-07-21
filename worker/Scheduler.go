@@ -18,12 +18,13 @@ var (
 )
 
 // 处理任务事件
-func (scheduler *Scheduler) handleJobEvent(jobEvent *common.JobEvent) (err error) {
+func (scheduler *Scheduler) handleJobEvent(jobEvent *common.JobEvent) (needSchedule bool) {
 	var (
 		jobSchedulePlan *common.JobSchedulePlan
 		jobExecuteInfo *common.JobExecuteInfo
 		jobExisted bool
 		jobExecuting bool
+		err error
 	)
 
 	switch jobEvent.EventType {
@@ -32,22 +33,75 @@ func (scheduler *Scheduler) handleJobEvent(jobEvent *common.JobEvent) (err error
 			return
 		}
 		scheduler.jobPlanTable[jobEvent.Job.Name] = jobSchedulePlan // 更新执行计划
+		needSchedule = true
 	case common.JOB_EVENT_DELETE: // 删除任务
 		if jobSchedulePlan, jobExisted = scheduler.jobPlanTable[jobEvent.Job.Name]; jobExisted {
 			delete(scheduler.jobPlanTable, jobEvent.Job.Name);
 		}
+		needSchedule = true
 	case common.JOB_EVENT_KILL: // 杀死任务
 		if jobExecuteInfo, jobExecuting = scheduler.jobExecutingTable[jobEvent.Job.Name]; jobExecuting {
-			// TODO: 任务正在执行, 杀死它
-			jobExecuteInfo = jobExecuteInfo
+			jobExecuteInfo.CancelFunc() // 仅仅触发杀死进程, 任务最终结束状态以回调为准
 		}
 	}
 	return
 }
 
-// 重新调度任务
-func (scheduler *Scheduler) ReScheduleJobPlan(jobPlan *common.JobSchedulePlan) {
-	jobPlan.NextTime = jobPlan.Expr.Next(time.Now())
+// 尝试执行任务
+func (scheduler *Scheduler) TryStartJob(jobPlan *common.JobSchedulePlan) {
+	var (
+		jobExecuteInfo *common.JobExecuteInfo
+		jobExecuting bool
+	)
+
+	// 任务正在执行, 跳过本次
+	if jobExecuteInfo, jobExecuting = scheduler.jobExecutingTable[jobPlan.Job.Name]; jobExecuting {
+		return
+	}
+
+	//  构建任务执行信息
+	jobExecuteInfo = common.BuildJobExecuteInfo(jobPlan)
+
+	// 保存执行信息
+	scheduler.jobExecutingTable[jobPlan.Job.Name] = jobExecuteInfo
+
+	// TODO: 执行任务
+	fmt.Println("执行任务:", jobExecuteInfo.Job.Name, jobExecuteInfo.RealTime, jobExecuteInfo.PlanTime)
+}
+
+// 尝试调度到期的任务
+func (scheduler *Scheduler) TrySchedule() (scheduleAfter time.Duration) {
+	var (
+		jobPlan *common.JobSchedulePlan
+		now time.Time
+		nearTime *time.Time
+	)
+
+	// 当前没有任务, 调度挂起即可
+	if len(scheduler.jobPlanTable) == 0 {
+		scheduleAfter = 1 * time.Second
+		return
+	}
+
+	// 当前时间
+	now = time.Now()
+
+	// 遍历所有任务计划
+	for _, jobPlan = range scheduler.jobPlanTable {
+		if jobPlan.NextTime.Before(now) || jobPlan.NextTime.Equal(now) { 	// 任务到期
+			scheduler.TryStartJob(jobPlan)	// 尝试启动任务
+			jobPlan.NextTime = jobPlan.Expr.Next(now) // 更新下次执行时间
+		}
+
+		// 统计最近一个要过期的任务时间
+		if nearTime == nil || jobPlan.NextTime.Before(*nearTime) {
+			nearTime = &jobPlan.NextTime
+		}
+	}
+
+	// 下次调度等待间隔
+	scheduleAfter = (*nearTime).Sub(now)
+	return
 }
 
 // 定时任务调度协程
@@ -55,43 +109,33 @@ func (scheduler *Scheduler) scheduleLoop() {
 	var (
 		jobEvent *common.JobEvent
 		scheduleTimer *time.Timer
-		lastScheduleTime time.Time	// 上次调度时间
-		now time.Time
-		scheduleIdle time.Duration
-		jobPlan *common.JobSchedulePlan
-		jobName string
+		needSchedule bool
+		scheduleAfter time.Duration
 	)
 
-	// 每间隔100毫秒调度一次
-	lastScheduleTime = time.Now()
-	// TODO: 根据最近一个任务的时间, 计算下次调度时间
-	scheduleTimer = time.NewTimer(common.SCHEDULE_PERIOD * time.Millisecond)
+	// 初始化调度
+	scheduleAfter = scheduler.TrySchedule()
+
+	// 调度定时器
+	scheduleTimer = time.NewTimer(scheduleAfter)
 
 	for {
+		// 是否需要重新调度
+		needSchedule = false
+
 		select {
 		case jobEvent = <- scheduler.jobEventChan:	 // 监听任务变化
-			scheduler.handleJobEvent(jobEvent)
-		case <- scheduleTimer.C: // 等待下个调度周期
+			needSchedule = scheduler.handleJobEvent(jobEvent)
+		case <- scheduleTimer.C: // 最近的任务到期
+			needSchedule = true
 		}
 
-		//  判断是否到达调度周期
-		now = time.Now()
-		scheduleIdle = now.Sub(lastScheduleTime)
-		if scheduleIdle < common.SCHEDULE_PERIOD * time.Millisecond {  // 还没到期, 继续等待
-			scheduleTimer.Reset(common.SCHEDULE_PERIOD - scheduleIdle)
-			continue
+		// 任务计划有变化, 重新调度
+		if needSchedule {
+			scheduleAfter = scheduler.TrySchedule()
+			//  重置调度间隔
+			scheduleTimer.Reset(scheduleAfter)
 		}
-
-		// TODO: 调度任务
-		for jobName, jobPlan = range scheduler.jobPlanTable {
-			// 任务到期
-			if jobPlan.NextTime.Before(now) || jobPlan.NextTime.Equal(now) {
-				fmt.Println("执行任务:", jobName)
-				scheduler.ReScheduleJobPlan(jobPlan)
-			}
-		}
-		lastScheduleTime = time.Now()
-		scheduleTimer.Reset(common.SCHEDULE_PERIOD  * time.Millisecond)
 	}
 }
 
