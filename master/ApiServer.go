@@ -28,8 +28,6 @@ func handleJobSave(resp http.ResponseWriter, req *http.Request) {
 		oldJob *common.Job
 		postJob string
 		bytes []byte
-		rawMsg json.RawMessage
-		data *json.RawMessage
 		err error
 	)
 
@@ -51,26 +49,17 @@ func handleJobSave(resp http.ResponseWriter, req *http.Request) {
 		goto ERR
 	}
 
-	// 如果是更新, 返回旧任务信息
-	if oldJob != nil {
-		if bytes, err = json.Marshal(oldJob); err == nil {
-			rawMsg = json.RawMessage(bytes)
-			data = &rawMsg
-		}
-	}
-
 	// 返回成功应答
-	if bytes, err = common.BuildResponse(0, "success", data); err == nil {
+	if bytes, err = common.BuildResponse(0, "success", oldJob); err == nil {
 		resp.Write(bytes)
+		return
 	}
-	return
 
 	// 返回异常应答
 ERR:
-	if bytes, err = common.BuildResponse(-1, err.Error(), data); err == nil {
+	if bytes, err = common.BuildResponse(-1, err.Error(), nil); err == nil {
 		resp.Write(bytes)
 	}
-
 	// 从命令行展示一下任务被成功保存
 	// ETCDCTL_API=3 ./etcdctl get "/cron/jobs/" --prefix
 }
@@ -82,8 +71,6 @@ func handleJobDelete(resp http.ResponseWriter, req *http.Request) {
 		err error
 		oldJob *common.Job
 		bytes []byte
-		rawMsg json.RawMessage
-		data *json.RawMessage
 	)
 
 	// 解析POST表单
@@ -99,24 +86,14 @@ func handleJobDelete(resp http.ResponseWriter, req *http.Request) {
 		goto ERR
 	}
 
-	// 如果删除成功, 返回被删除的任务信息
-	if oldJob != nil {
-		// 忽略这种错误
-		if bytes, err = json.Marshal(oldJob); err == nil {
-			rawMsg = json.RawMessage(bytes)
-			data = &rawMsg
-		}
-	}
-
-	// 返回成功应答
-	if bytes, err = common.BuildResponse(0, "success", data); err == nil {
+	// 删除成功, 返回被删除的任务信息
+	if bytes, err = common.BuildResponse(0, "success", oldJob); err == nil {
 		resp.Write(bytes)
+		return
 	}
-	return
-
 	// 返回异常应答
 ERR:
-	if bytes, err = common.BuildResponse(-1, err.Error(), data); err == nil {
+	if bytes, err = common.BuildResponse(-1, err.Error(), nil); err == nil {
 		resp.Write(bytes)
 	}
 }
@@ -126,8 +103,6 @@ func handleJobList(resp http.ResponseWriter, req *http.Request) {
 	var (
 		jobList []*common.Job
 		bytes []byte
-		rawMsg json.RawMessage
-		data *json.RawMessage
 		err error
 	)
 
@@ -136,23 +111,15 @@ func handleJobList(resp http.ResponseWriter, req *http.Request) {
 		goto ERR
 	}
 
-	// 序列化data
-	if bytes, err = json.Marshal(jobList); err != nil {
-		goto ERR
-	}
-
-	rawMsg = json.RawMessage(bytes)
-	data = &rawMsg
-
 	// 返回成功应答
-	if bytes, err = common.BuildResponse(0, "success", data); err == nil {
+	if bytes, err = common.BuildResponse(0, "success", jobList); err == nil {
 		resp.Write(bytes)
+		return
 	}
-	return
 
 	// 返回异常应答
 ERR:
-	if bytes, err = common.BuildResponse(-1, err.Error(), data); err == nil {
+	if bytes, err = common.BuildResponse(-1, err.Error(), nil); err == nil {
 		resp.Write(bytes)
 	}
 }
@@ -181,8 +148,61 @@ func handleJobKill(resp http.ResponseWriter, req *http.Request) {
 	// 返回成功应答
 	if bytes, err = common.BuildResponse(0, "success", nil); err == nil {
 		resp.Write(bytes)
+		return
 	}
-	return
+
+	// 返回异常应答
+ERR:
+	if bytes, err = common.BuildResponse(-1, err.Error(), nil); err == nil {
+		resp.Write(bytes)
+	}
+}
+
+// 查询执行日志
+func handleJobLog(resp http.ResponseWriter, req *http.Request) {
+	var (
+		name string
+		skipParam string
+		limitParam string
+		skip int
+		limit int
+		bytes []byte
+		filter *common.JobLogFilter
+		logArr []*common.JobLog
+		err error
+	)
+
+	// 解析GET参数
+	if err = req.ParseForm(); err != nil {
+		goto ERR
+	}
+
+	// 请求参数处理
+	name = req.Form.Get("name")
+	skipParam = req.Form.Get("skip")
+	limitParam = req.Form.Get("limit")
+	if skip, err = strconv.Atoi(skipParam); err != nil{
+		skip = 0
+	}
+	if limit, err = strconv.Atoi(limitParam); err != nil {
+		limit = 20
+	}
+
+	// 过滤条件
+	filter = &common.JobLogFilter{
+		JobName: name,
+	}
+
+	// 发起查询
+	if logArr, err = G_logMgr.ListLog(filter, skip, limit); err != nil {
+		goto ERR
+	}
+
+	// 返回成功应答
+	if bytes, err = common.BuildResponse(0, "success", logArr); err == nil {
+		resp.Write(bytes)
+		return
+	}
 
 	// 返回异常应答
 ERR:
@@ -209,6 +229,7 @@ func InitApiServer() (err error) {
 	mux.HandleFunc("/job/delete", handleJobDelete)
 	mux.HandleFunc("/job/list", handleJobList)
 	mux.HandleFunc("/job/kill", handleJobKill)
+	mux.HandleFunc("/job/log", handleJobLog)
 
 	// 静态文件路由
 	staticDir = http.Dir(G_config.Webroot)

@@ -65,6 +65,16 @@ type JobLog struct {
 	EndTime int64 `bson:"endTime"` //  结束执行时间
 }
 
+// 任务日志查询过滤参数
+type JobLogFilter struct {
+	JobName string `bson:"jobName"`
+}
+
+//  任务日志查询排序
+type SortLogByStartTime struct {
+	SortOrder int `bson:"startTime"`	// 按任务开始时间排序
+}
+
 // 构造执行计划
 func BuildJobExecuteInfo(jobSchedulePlan *JobSchedulePlan) (jobExecuteInfo *JobExecuteInfo) {
 	jobExecuteInfo = &JobExecuteInfo{
@@ -119,15 +129,24 @@ func BuildJobEvent(eventType int, job *Job) (jobEvent *JobEvent) {
 }
 
 // 构建应答
-func BuildResponse(errno int , msg string, data *json.RawMessage) (resp []byte, err error) {
+func BuildResponse(errno int , msg string, data interface{}) (resp []byte, err error) {
 	var (
 		response Response
+		bytes []byte
+		rawMsg json.RawMessage
 	)
+
+	// 序列化data
+	if bytes, err = json.Marshal(data); err != nil {
+		return
+	}
+	rawMsg = json.RawMessage(bytes)
 
 	response.Errno = errno
 	response.Msg = msg
-	response.Data = data
-	// 序列化
+	response.Data = &rawMsg
+
+	// 序列化整个应答
 	resp, err = json.Marshal(response)
 	return
 }
