@@ -45,9 +45,10 @@ func (executor *Executor) ExecuteJob(info *common.JobExecuteInfo) {
 		jobLock = G_jobMgr.CreateJobLock(info.Job.Name)
 
 		// 上锁
+		result.StartTime = time.Now()
+
 		if err = jobLock.TryLock(); err != nil {	// 上锁失败
-			result.StartTime = time.Now()
-			result.EndTime = result.StartTime
+			result.EndTime = time.Now()
 			result.Err = err
 		} else {
 			// 开始时间

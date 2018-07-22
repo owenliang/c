@@ -6,5 +6,20 @@
   "etcdDialTimeout": 5000,
 
   "etcd事件队列长度": "任务变化频率很低, 不需要太大",
-  "jobEventChanSize": 1000
+  "jobEventChanSize": 1000,
+
+  "mongodb地址": "采用mongodb URI",
+  "mongodbUri": "mongodb://36.111.184.221:27017",
+
+  "mongodb连接超时": "单位毫秒",
+  "mongodbConnectTimeout": 5000,
+
+  "执行日志队列长度": "任务越多, 调度越频繁, 日志则越多",
+  "jobLogChanSize": 1000,
+
+  "日志写入批次大小": "减少mongodb网络往返, 提升吞吐",
+  "jobLogBatchSize": 10,
+
+  "日志自动提交超时": "在未达到批次大小前, 超时自动提交",
+  "jogLogCommitTimeout": 1000
 }

@@ -50,11 +50,31 @@ func (scheduler *Scheduler) handleJobEvent(jobEvent *common.JobEvent) (needSched
 
 // 处理任务结果
 func (scheduler *Scheduler) handleJobResult(result *common.JobExecuteResult) {
+	var (
+		jobLog *common.JobLog
+	)
+
 	// 删除执行中状态
 	delete(scheduler.jobExecutingTable, result.ExecuteInfo.Job.Name)
 
-	// TODO: 发送执行日志
-	fmt.Println("执行完成:", result.Err,  result.Output, result.StartTime, result.EndTime)
+	// 发送执行日志
+	if result.Err != common.ERR_LOCK_ALREADY_REQUIRED {
+		jobLog = &common.JobLog{
+			JobName: result.ExecuteInfo.Job.Name,
+			Command: result.ExecuteInfo.Job.Command,
+			Output: string(result.Output),
+			PlanTime: result.ExecuteInfo.PlanTime.UnixNano() / 1000,
+			ScheduleTime: result.ExecuteInfo.RealTime.UnixNano() / 1000,
+			StartTime: result.StartTime.UnixNano() / 1000,
+			EndTime: result.EndTime.UnixNano() / 1000,
+		}
+		if result.Err != nil {
+			jobLog.Err = result.Err.Error()
+		} else {
+			jobLog.Err = ""
+		}
+		G_logSink.Append(jobLog)
+	}
 }
 
 // 尝试执行任务
@@ -66,6 +86,7 @@ func (scheduler *Scheduler) TryStartJob(jobPlan *common.JobSchedulePlan) {
 
 	// 任务正在执行, 跳过本次
 	if jobExecuteInfo, jobExecuting = scheduler.jobExecutingTable[jobPlan.Job.Name]; jobExecuting {
+		// fmt.Println("正在运行")
 		return
 	}
 

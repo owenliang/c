@@ -53,6 +53,18 @@ type JobExecuteResult struct {
 	EndTime time.Time // 结束时间
 }
 
+// 任务执行日志
+type JobLog struct {
+	JobName string `bson:"jobName"`// 任务名字
+	Command string `bson:"command"`// 脚本命令
+	Err string `bson:"err"`// 错误原因
+	Output string  `bson:"output"` // shell输出内容
+	PlanTime int64 `bson:"planTime"` // 计划开始时间
+	ScheduleTime int64 `bson:"scheduleTime"` // 实际调度时间
+	StartTime int64 `bson:"startTime"` // 开始执行时间(微秒)
+	EndTime int64 `bson:"endTime"` //  结束执行时间
+}
+
 // 构造执行计划
 func BuildJobExecuteInfo(jobSchedulePlan *JobSchedulePlan) (jobExecuteInfo *JobExecuteInfo) {
 	jobExecuteInfo = &JobExecuteInfo{
