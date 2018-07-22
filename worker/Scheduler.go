@@ -11,6 +11,7 @@ type Scheduler struct {
 	jobEventChan chan *common.JobEvent	// etcd任务事件队列
 	jobPlanTable map[string]*common.JobSchedulePlan	// 任务调度表
 	jobExecutingTable map[string]*common.JobExecuteInfo// 任务执行表( 保存正在运行的任务)
+	jobResultChan chan *common.JobExecuteResult // 任务结果队列
 }
 
 var (
@@ -47,6 +48,15 @@ func (scheduler *Scheduler) handleJobEvent(jobEvent *common.JobEvent) (needSched
 	return
 }
 
+// 处理任务结果
+func (scheduler *Scheduler) handleJobResult(result *common.JobExecuteResult) {
+	// 删除执行中状态
+	delete(scheduler.jobExecutingTable, result.ExecuteInfo.Job.Name)
+
+	// TODO: 发送执行日志
+	fmt.Println("执行完成:", result.Err,  result.Output, result.StartTime, result.EndTime)
+}
+
 // 尝试执行任务
 func (scheduler *Scheduler) TryStartJob(jobPlan *common.JobSchedulePlan) {
 	var (
@@ -65,7 +75,8 @@ func (scheduler *Scheduler) TryStartJob(jobPlan *common.JobSchedulePlan) {
 	// 保存执行信息
 	scheduler.jobExecutingTable[jobPlan.Job.Name] = jobExecuteInfo
 
-	// TODO: 执行任务
+	// 执行任务
+	G_executor.ExecuteJob(jobExecuteInfo)
 	fmt.Println("执行任务:", jobExecuteInfo.Job.Name, jobExecuteInfo.RealTime, jobExecuteInfo.PlanTime)
 }
 
@@ -111,6 +122,7 @@ func (scheduler *Scheduler) scheduleLoop() {
 		scheduleTimer *time.Timer
 		needSchedule bool
 		scheduleAfter time.Duration
+		jobResult *common.JobExecuteResult
 	)
 
 	// 初始化调度
@@ -128,6 +140,8 @@ func (scheduler *Scheduler) scheduleLoop() {
 			needSchedule = scheduler.handleJobEvent(jobEvent)
 		case <- scheduleTimer.C: // 最近的任务到期
 			needSchedule = true
+		case jobResult= <- scheduler.jobResultChan: // 任务执行结果
+			scheduler.handleJobResult(jobResult)
 		}
 
 		// 任务计划有变化, 重新调度
@@ -144,6 +158,7 @@ func InitScheduler() (err error) {
 		jobEventChan: make(chan *common.JobEvent, 1000),
 		jobPlanTable: make(map[string]*common.JobSchedulePlan),
 		jobExecutingTable: make(map[string]*common.JobExecuteInfo),
+		jobResultChan: make(chan *common.JobExecuteResult, 1000),
 	}
 
 	// 启动调度协程
@@ -154,4 +169,9 @@ func InitScheduler() (err error) {
 // 推送任务变化事件
 func (scheduler *Scheduler) PushJobEvent(jobEvent *common.JobEvent) {
 	scheduler.jobEventChan <- jobEvent
+}
+
+// 推送任务执行结果
+func (scheduler* Scheduler) PushJobResult(jobResult *common.JobExecuteResult)  {
+	scheduler.jobResultChan <- jobResult
 }

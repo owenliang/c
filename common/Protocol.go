@@ -44,6 +44,15 @@ type JobExecuteInfo struct {
 	CancelFunc context.CancelFunc //  取消任务的cancel函数
 }
 
+// 任务执行结果
+type JobExecuteResult struct {
+	ExecuteInfo *JobExecuteInfo	// 执行信息
+	Output []byte // 脚本输出
+	Err error // 脚本失败原因
+	StartTime time.Time // 启动时间
+	EndTime time.Time // 结束时间
+}
+
 // 构造执行计划
 func BuildJobExecuteInfo(jobSchedulePlan *JobSchedulePlan) (jobExecuteInfo *JobExecuteInfo) {
 	jobExecuteInfo = &JobExecuteInfo{
@@ -119,4 +128,9 @@ func ExtractJobName(jobKey string) (string) {
 // 提取要杀死的任务名
 func ExtractKillerName(killerKey string) (string) {
 	return strings.TrimPrefix(killerKey, JOB_KILLER_DIR)
+}
+
+// 构建任务锁路径
+func BuildJobLockKey(jobName string) (string){
+	return JOB_LOCK_DIR + jobName
 }
