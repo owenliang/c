@@ -15,35 +15,37 @@
     <script src="https://cdn.bootcss.com/bootstrap/3.3.7/js/bootstrap.min.js" integrity="sha384-Tc5IQib027qvyjSMfHjOMaLkfuWVxZxUPnCJA7l2mCWNIpG9mGCD8wGNIcPD7Txa" crossorigin="anonymous"></script>
 </head>
 <body>
-<div class="container">
+<div class="container-fluid">
     <div class="row">
         <div class="col-md-12">
             <div class="page-header">
-                <h1>任务管理界面<small> golang分布式crontab</small></h1>
+                <h1>管理后台<small> Golang分布式Crontab</small></h1>
             </div>
         </div>
     </div>
     <div class="row">
         <div class="col-md-12">
-            <div class="btn-group btn-group-lg">
-                <button type="button" class="btn btn-primary" id="new-job">新建任务</button>
-                <button type="button" class="btn btn-primary" id="list-worker">健康节点</button>
-            </div>
+            <button type="button" class="btn btn-primary" id="new-job">新建任务</button>
+            <button type="button" class="btn btn-success" id="list-worker">健康节点</button>
         </div>
     </div>
     <div class="row">
         <div class="col-md-12">
-            <table id="job-list" class="table table-striped">
-                <thead>
-                    <tr>
-                        <th>任务名称</th>
-                        <th>shell命令</th>
-                        <th>cron表达式</th>
-                        <th>任务操作</th>
-                    </tr>
-                </thead>
-                <tbody></tbody>
-            </table>
+            <div class="panel panel-default" style="margin-top:20px">
+                <div class="panel-body">
+                    <table id="job-list" class="table table-striped">
+                        <thead>
+                            <tr>
+                                <th>任务名称</th>
+                                <th>shell命令</th>
+                                <th>cron表达式</th>
+                                <th>任务操作</th>
+                            </tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+            </div>
         </div>
     </div>
 </div>
@@ -158,14 +160,23 @@
 
         // 时间格式化
         function timeFormat(millsecond) {
+            // 前缀补0
+            function paddingNum(num, n) {
+                var len = num.toString().length;
+                while (len < n) {
+                    num = "0" + num;
+                    len++;
+                }
+                return num;
+            }
             var date = new Date(millsecond);
             var year = date.getFullYear()
-            var month = date.getMonth() + 1
-            var day= date.getDate()
-            var hour = date.getHours()
-            var minute = date.getMinutes()
-            var second = date.getSeconds()
-            var millsecond = date.getMilliseconds()
+            var month = paddingNum(date.getMonth() + 1, 2)
+            var day= paddingNum(date.getDate(), 2)
+            var hour = paddingNum(date.getHours(), 2)
+            var minute = paddingNum(date.getMinutes(), 2)
+            var second = paddingNum(date.getSeconds(), 2)
+            var millsecond = paddingNum(date.getMilliseconds(), 3)
             return year + "-" + month + "-" + day + " " + hour + ":" + minute + ":" + second + "." + millsecond
         }
 
@@ -241,12 +252,12 @@
                         tr.append($('<td class="job-name">').html(job.name))
                         tr.append($('<td class="job-command">').html(job.command))
                         tr.append($('<td class="job-cronExpr">').html(job.cronExpr))
-                        var btnGroup = $('<div class="btn-group">')
+                        var toolbar = $('<div class="btn-toolbar">')
                                 .append('<button class="btn btn-info edit-job">编辑</button>')
                                 .append('<button class="btn btn-danger delete-job">删除</button>')
                                 .append('<button class="btn btn-warning kill-job">强杀</button>')
                                 .append('<button class="btn btn-success job-log">日志</button>')
-                        tr.append(btnGroup)
+                        tr.append($('<td>').append(toolbar))
                         $("#job-list tbody").append(tr)
                     }
 
