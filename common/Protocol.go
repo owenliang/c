@@ -165,3 +165,8 @@ func ExtractKillerName(killerKey string) (string) {
 func BuildJobLockKey(jobName string) (string){
 	return JOB_LOCK_DIR + jobName
 }
+
+// 提取worker的IP
+func ExtractWorkerIP(regKey string) (string) {
+	return strings.TrimPrefix(regKey, JOB_WORKER_DIR)
+}
